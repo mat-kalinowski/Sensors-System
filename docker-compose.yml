@@ -1,0 +1,32 @@
+version: "3"
+services:
+        rabbitmq-broker:
+                image: rabbitmq:3-management-alpine
+                container_name: rabbitmq-broker
+                ports:
+                        - 5672:5672
+                        - 15672:15672
+                environment:
+                        RABBITMQ_ERLANG_COOKIE: 6085e2412b6fa88647466c6a81c0cea0
+                        RABBITMQ_DEFAULT_USER: user
+                        RABBITMQ_DEFAULT_PASS: user
+                healthcheck:
+                        test: [ "CMD", "nc", "-z", "localhost", "5672" ]
+                        interval: 5s
+                        timeout: 15s
+                        retries: 3
+
+        sensors-middleware:
+                build: ./sensors-middleware
+                #restart: on-failure
+                depends_on:
+                        rabbitmq-broker:
+                                condition: service_healthy
+
+
+        dummy-receiver:
+               build: ./dummy-receiver
+               #restart: on-failure
+               depends_on:
+                        rabbitmq-broker:
+                                condition: service_healthy
