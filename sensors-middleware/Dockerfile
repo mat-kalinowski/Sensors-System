@@ -7,4 +7,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD ["python", "./sender.py"]
+CMD ["python", "-u", "./sender.py"]

@@ -18,15 +18,10 @@ services:
 
         sensors-middleware:
                 build: ./sensors-middleware
-                #restart: on-failure
                 depends_on:
-                        rabbitmq-broker:
-                                condition: service_healthy
-
+                        - "rabbitmq-broker"
 
         dummy-receiver:
                build: ./dummy-receiver
-               #restart: on-failure
                depends_on:
-                        rabbitmq-broker:
-                                condition: service_healthy
+                        - "rabbitmq-broker"
