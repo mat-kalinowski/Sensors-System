@@ -1,8 +1,8 @@
 version: "3"
 services:
-        rabbitmq-broker:
+        rabbitmq:
                 image: rabbitmq:3-management-alpine
-                container_name: rabbitmq-broker
+                container_name: rabbitmq
                 ports:
                         - 5672:5672
                         - 15672:15672
@@ -16,16 +16,21 @@ services:
                         timeout: 15s
                         retries: 3
 
-        sensors-middleware:
-                build: ./sensors-middleware
-                depends_on:
-                        - "rabbitmq-broker"
-                volumes:
-                        - ./sensors-middleware/src:/root/
+        #sensors-middleware:
+        #        build: ./sensors-middleware
+        #        depends_on:
+        #                - "rabbitmq"
+        #        volumes:
+        #                - ./sensors-middleware/src:/root/
 
         dummy-receiver:
                 build: ./dummy-receiver
                 depends_on:
-                        - "rabbitmq-broker"
+                        - "rabbitmq"
                 volumes:
                         - ./dummy-receiver/src:/root/
+
+        dotnet-service:
+                build: ./dotnet-service
+                depends_on:
+                        - "rabbitmq"

@@ -11,12 +11,12 @@ def consume():
     print("sender: attempting to connect")
 
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='rabbitmq-broker', credentials=credentials))
+        pika.ConnectionParameters(host='rabbitmq', credentials=credentials))
 
     channel = connection.channel()
 
     channel.queue_declare(queue='nodesStatus')
-    channel.queue_declare(queue='startTask')
+    channel.queue_declare(queue='startTask', durable=False)
     channel.queue_declare(queue='endTask')
 
     channel.basic_publish(exchange='', routing_key='startTask', body=json.dumps({'nodeId': 123}))
