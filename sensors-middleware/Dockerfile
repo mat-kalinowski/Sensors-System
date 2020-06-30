@@ -1,10 +1,8 @@
 FROM python:3
 
-WORKDIR /usr/src/app
+WORKDIR /root
 
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-
-COPY . .
 
 CMD ["python", "-u", "./sender.py"]
