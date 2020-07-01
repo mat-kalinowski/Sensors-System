@@ -18,54 +18,28 @@ namespace dotnetapp
 
         public static async Task MainAsync(string[] args)
         {
-            var rabbitmqUri = Environment.GetEnvironmentVariable("RABBITMQ_URI");
-
             using (var cts = new CancellationTokenSource())
             {
-                Action Shutdown = () =>
-                {
-                    if (!cts.IsCancellationRequested)
-                    {
-                        Console.WriteLine("Application is shutting down...");
-                        _bus.Stop();
-                        cts.Cancel();
-                    }
-                    _done.Wait();
-                };
-
-                Console.CancelKeyPress += (sender, eventArgs) =>
-                {
-                    Shutdown();
-                    eventArgs.Cancel = true;
-                };
 
                 _bus = MassTransit.Bus.Factory.CreateUsingRabbitMq(cfg =>
                 {
-                    cfg.Host("rabbitmq", "/", h =>
+                    cfg.Host("rabbitmq-broker", "/", h =>
                     {
                         h.Username("user");
                         h.Password("user");
                     });
 
-                    cfg.ReceiveEndpoint("my_queue", endpoint =>
+                    cfg.ReceiveEndpoint("updateTask", endpoint =>
                     {
-                        endpoint.Handler<MyMessage>(async context =>
+                        endpoint.Handler<UpdateTaskCounter>(async context =>
                         {
-                            await Console.Out.WriteLineAsync($"Received: {context.Message.Value}");
-                        });
-                    });
-
-                    cfg.ReceiveEndpoint("second_endpoint", endpoint =>
-                    {
-                        endpoint.Handler<MyMessage>(async context =>
-                        {
-                            await Console.Out.WriteLineAsync($"New msg on second endpoint: {context.Message.Value}");
+                            await Console.Out.WriteLineAsync($" [x] Received node {context.Message.nodeID} update, counter: {context.Message.counter}");
                         });
                     });
                 });
 
-                await Console.Out.WriteLineAsync("Application is starting...");
-                await Console.Out.WriteLineAsync($"Connecting to {rabbitmqUri}");
+                await Console.Out.WriteLineAsync("Service is starting...");
+                await Console.Out.WriteLineAsync($"Connecting to rabbitmq broker");
                 
                 var numberOfRetries = 4;
 
@@ -78,8 +52,8 @@ namespace dotnetapp
                     }
                     catch {
                         await Console.Out.WriteLineAsync("Couldn't started bus properly - exception !");
-                        if (numberOfRetries == 0)
-                            throw;
+
+                        if (numberOfRetries == 0) throw;
                     }
                 }
 
@@ -88,20 +62,33 @@ namespace dotnetapp
                 while(!cts.IsCancellationRequested)
                 {
                     try{
-                        var sendEndpoint = await _bus.GetSendEndpoint(new Uri("queue:startTask"));
+                        var startTaskEp = await _bus.GetSendEndpoint(new Uri("queue:startTask"));
+                        var endTaskEp = await _bus.GetSendEndpoint(new Uri("queue:endTask"));
 
-                        await sendEndpoint.Send(new MyMessage { Value = $"Hello, World [{DateTime.Now}]" }, cts.Token);
-                        await Task.Delay(5000);
+                        await Console.Out.WriteLineAsync("Sending task start request");
+                        await startTaskEp.Send(new TaskRequest { nodeID = "123", taskID = "123" }, cts.Token);
+                        await Task.Delay(30000);
+
+                        await Console.Out.WriteLineAsync("Sending task end request");
+                        await endTaskEp.Send(new TaskRequest { taskID = "123"}, cts.Token);
+                        await Task.Delay(15000);
                     }
-                    catch {
-                    }
+                    catch {}
                 }
             }
         }
     }
 
-    public class MyMessage
+    public class TaskRequest
     {
-        public string Value { get; set; }
+        public string nodeID { get; set; }
+        public string taskID { get; set; } 
+    }
+
+    public class UpdateTaskCounter
+    {
+        public string nodeID { get; set; }
+        public string taskId { get; set; }
+        public int counter { get; set; }
     }
 }

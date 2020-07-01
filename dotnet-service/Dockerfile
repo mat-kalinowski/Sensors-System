@@ -13,5 +13,4 @@ RUN dotnet publish -c release -o /app --no-restore
 FROM mcr.microsoft.com/dotnet/core/runtime:3.1
 WORKDIR /app
 COPY --from=build /app .
-ENV RABBITMQ_URI "rabbitmq://rabbitmq:5672"
 ENTRYPOINT ["dotnet", "dotnetapp.dll"]
