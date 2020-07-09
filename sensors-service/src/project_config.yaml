@@ -1,0 +1,15 @@
+# rabbitmq amqp configuration
+amqp:
+  hostname: "rabbitmq-broker"
+  username: "user"
+  password: "user"
+  dotnet-service: "dotnetapp"
+  endpoints:
+    nodesStatus: UpdateNodesStatus
+    taskUpdate: UpdateTaskCounter
+
+# rabbitmq mqtt plugin configuration
+mqtt:
+  hostname: "rabbitmq-broker"
+  username: "user"
+  password: "user"
