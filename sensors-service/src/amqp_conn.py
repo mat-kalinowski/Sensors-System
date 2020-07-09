@@ -7,7 +7,7 @@ amqp_conf = config.amqp
 
 class MassTransitMessage(object):
 
-    def __init__(self, endpoint, message,  headers = {}):
+    def __init__(self, endpoint, message, headers = {}):
         self.destinationAddress = "rabbitmq://{}/{}".format(amqp_conf["host"], endpoint)
         self.headers = headers
         self.messageType = ["urn:message:{}:{}"
@@ -25,14 +25,12 @@ class AMQPConn(object):
     
     @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
     def __init__(self, *args, **kwargs):
-        print("trying to connect to rabbitmmq brokers")        
         self.conn = pika.BlockingConnection(self.params)
         self.channel = self.conn.channel()
 
     def consume(self, ep_callbacks):
         for ep in ep_callbacks:
-            self.channel.queue_declare(ep[0], exclusive=True, durable=True)
-            queue_name = result.method.queue
+            self.channel.queue_declare(ep[0], durable=True)
 
             self.channel.basic_consume(
                 queue=ep[0], 

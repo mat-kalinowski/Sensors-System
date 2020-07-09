@@ -2,20 +2,14 @@
 
 import pika
 import json
-import time
 import threading
-from socket import error as socket_error
-from retry import retry
+import paho.mqtt.client as mqtt 
 
-#import mqtt_conn
+import mqtt_conn
 import amqp_conn
 
-amqp_bus = amqp_conn.AMQPConn()
-#mqtt_bus = MQTTConn()
-
-client = mqtt.Client("sensors-service")
-
-nodeMap = {}
+node_map = {}
+tasks_map = {}
 
 class Node(object):
     def __init__(self, node_id, task_id = -1, counter = 0):
@@ -41,20 +35,24 @@ def start_task_callback(ch, method, properties, body):
         return 
 
     node_obj.switch_task(msg_dict["taskID"])
-    client.publish(payload="", topic="/tasks/start/{}".format(msg_dict['nodeID']))
+    tasks_map[node_obj.task_id] = node_obj
+
+    mqtt_bus.publish(payload="", topic="/tasks/start/{}".format(msg_dict['nodeID']))
 
 
 def end_task_callback(ch, method, properties, body):
     msg_dict = json.loads(body)["message"]
-    node_obj = node_map.get(msg_dict[nodeID])
+    node_obj = tasks_map.get(msg_dict["taskID"])
 
-    print(" [x] Received end task request - message: %r" % msgDict)
+    print(" [x] Received end task request - message: %r" % msg_dict)
    
     if node_obj is None:
         return 
 
     node_obj.switch_task(-1)
-    client.publish(payload="",topic="/tasks/end/{}".format(msg_dict['nodeID']))
+    tasks_map.pop(node_obj.task_id)
+
+    mqtt_bus.publish(payload="",topic="/tasks/end/{}".format(msg_dict['nodeID']))
     
 
 def tasks_status_callback(ch, method, properties, body):
@@ -81,27 +79,14 @@ def mqtt_on_message(client, userdata, msg):
             amqp_bus.publish(message=node_obj.to_json(), )
 
 
-@retry(socket_error, delay=5, jitter=(1, 3))
-def mqtt_connect():
-    print("connecting to mqtt broker")
-    global client
+endpoints = [('startTask', start_task_callback),
+            ('endTask', end_task_callback),
+            ('taskStatus', tasks_status_callback)]
 
-    client.username_pw_set("user", "user")
-    client.connect("localhost")
-     
-    client.on_connect = mqtt_on_connect
-    client.on_message = mqtt_on_message
+amqp_bus = amqp_conn.AMQPConn()
+mqtt_bus = mqtt_conn.MQTTConn(on_connect=mqtt_on_connect, on_message=mqtt_on_message)
 
-    client.loop_start()        # separate thread looping through receive and send buffers, handling reconnects
-
-
-endpoints = [('startTask', startTaskCallback),
-            ('endTask', endTaskCallback),
-            ('taskStatus', tasksStatusCallback)]
-
-
-amqp_thread = threading.Thread(target=conf.start_consumer, args=(endpoints,))
+amqp_thread = threading.Thread(target=amqp_bus.consume, args=(endpoints,))
 amqp_thread.start() 
 
-mqtt_connect()
 amqp_thread.join()

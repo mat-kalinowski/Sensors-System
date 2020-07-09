@@ -1,8 +1,7 @@
 version: "3"
 services:
         rabbitmq-broker:
-                image: rabbitmq:3-management-alpine
-                container_name: rabbitmq-broker
+                build: ./rabbitmq-setup
                 ports:
                         - 5672:5672
                         - 15672:15672
@@ -27,3 +26,12 @@ services:
                 build: ./dotnet-service
                 depends_on:
                         - "rabbitmq-broker"
+
+        dummy-firmware:
+                build: ./dummy-firmware
+                volumes:
+                        - ./dummy-firmware/src:/root/
+                depends_on:
+                        - "rabbitmq-broker"
+
+        
