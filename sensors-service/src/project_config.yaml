@@ -5,7 +5,7 @@ amqp:
   password: "user"
   dotnet-service: "dotnetapp"
   endpoints:
-    nodesStatus: UpdateNodesStatus
+    updateStatus: UpdateNodesStatus
     updateTask: UpdateTaskCounter
 
 # rabbitmq mqtt plugin configuration

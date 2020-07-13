@@ -5,6 +5,7 @@ import json
 import threading
 import paho.mqtt.client as mqtt 
 import time
+import socket
 
 import mqtt_conn
 import amqp_conn
@@ -33,7 +34,8 @@ def start_task_callback(ch, method, properties, body):
     print(" [x] Received start task request - message: %r" % msg_dict)
    
     if node_obj is None:
-        return 
+        mqtt_bus.publish(message="", topic="nodes/discover")
+        return
 
     node_obj.switch_task(msg_dict["taskID"])
     tasks_map[node_obj.task_id] = node_obj
@@ -55,12 +57,20 @@ def end_task_callback(ch, method, properties, body):
 
     mqtt_bus.publish(message="", topic="tasks/end/{}".format(node_obj.node_id))
     
+# sending back to updateStatus exchange
 
-def tasks_status_callback(ch, method, properties, body):
+def nodes_status_callback(ch, method, properties, body):
+    res_arr = []
+
     print(" [x] Received nodes status request")
-    print("hello - i will provide array with all nodes status")
 
-    # convert node_map to proper endpoint format
+    for node_tuple in node_map.items():
+        node = node_tuple[1]
+        
+        active = True if node.task_id >= 0 else False
+        res_arr.append({"nodeID": node.node_id, "isActive": active})
+
+    amqp_pub.publish(message=res_arr, exchange='updateStatus')
 
 
 def mqtt_on_connect(client, userdata, flags, rc):  
@@ -80,9 +90,9 @@ def mqtt_on_message(client, userdata, msg):
         task_data = json.loads(msg.payload)
         node_obj = node_map.get(task_data['nodeID'])
         
-        if node_obj is not None:
+        if node_obj is not None and node_obj.counter != task_data['counter']:
             node_obj.counter = task_data['counter']
-            ser_node = node_obj.__dict__
+            ser_node = node_obj.__dict__.copy()
 
             ser_node["nodeID"] = ser_node.pop("node_id")
             ser_node["taskID"] = ser_node.pop("task_id")
@@ -92,9 +102,14 @@ def mqtt_on_message(client, userdata, msg):
 
 endpoints = [('startTask', start_task_callback),
             ('endTask', end_task_callback),
-            ('taskStatus', tasks_status_callback)]
+            ('nodesStatus', nodes_status_callback)]
 
-time.sleep(40.0)
+time.sleep(20.0)
+
+hostname = socket.gethostname()
+ip_address = socket.gethostbyname(hostname)
+
+print("up and running - ip address: {}".format(ip_address))
 
 amqp_bus = amqp_conn.AMQPConsumer()
 amqp_pub = amqp_conn.AMQPPublisher()

@@ -61,6 +61,8 @@ class AMQPPublisher(object):
     def publish(self, message, exchange):
         msg = MassTransitMessage(endpoint=exchange, message=message)
 
+        #print(msg.to_json())
+
         if self.channel is None:
             return
 
