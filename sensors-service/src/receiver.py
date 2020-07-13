@@ -60,6 +60,8 @@ def tasks_status_callback(ch, method, properties, body):
     print(" [x] Received nodes status request")
     print("hello - i will provide array with all nodes status")
 
+    # convert node_map to proper endpoint format
+
 
 def mqtt_on_connect(client, userdata, flags, rc):  
     client.subscribe("nodes/discover/response")
@@ -80,7 +82,12 @@ def mqtt_on_message(client, userdata, msg):
         
         if node_obj is not None:
             node_obj.counter = task_data['counter']
-            amqp_pub.publish(message=node_obj.to_json(), exchange='taskUpdate')
+            ser_node = node_obj.__dict__
+
+            ser_node["nodeID"] = ser_node.pop("node_id")
+            ser_node["taskID"] = ser_node.pop("task_id")
+
+            amqp_pub.publish(message=ser_node, exchange='updateTask')
 
 
 endpoints = [('startTask', start_task_callback),

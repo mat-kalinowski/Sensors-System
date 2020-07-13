@@ -89,6 +89,6 @@ namespace dotnetapp
     {
         public string nodeID { get; set; }
         public string taskId { get; set; }
-        public int counter { get; set; }
+        public int taskID { get; set; }
     }
 }

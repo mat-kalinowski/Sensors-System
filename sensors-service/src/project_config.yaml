@@ -6,7 +6,7 @@ amqp:
   dotnet-service: "dotnetapp"
   endpoints:
     nodesStatus: UpdateNodesStatus
-    taskUpdate: UpdateTaskCounter
+    updateTask: UpdateTaskCounter
 
 # rabbitmq mqtt plugin configuration
 mqtt:

@@ -17,9 +17,7 @@ class MassTransitMessage(object):
         return json.dumps(self.__dict__)
 
 
-#
-#   cannot publish on the same thread
-#
+# separate connection for each thread
 
 class AMQPConsumer(object):
 
@@ -62,7 +60,6 @@ class AMQPPublisher(object):
 
     def publish(self, message, exchange):
         msg = MassTransitMessage(endpoint=exchange, message=message)
-        print(msg.to_json())
 
         if self.channel is None:
             return
