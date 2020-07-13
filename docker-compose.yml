@@ -19,6 +19,7 @@ services:
                 build: ./sensors-service
                 depends_on:
                         - "rabbitmq-broker"
+                        - "dummy-firmware"
                 volumes:
                         - ./sensors-service/src:/root/
 
