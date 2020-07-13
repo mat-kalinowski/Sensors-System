@@ -66,7 +66,7 @@ def nodes_status_callback(ch, method, properties, body):
 
     for node_tuple in node_map.items():
         node = node_tuple[1]
-        
+
         active = True if node.task_id >= 0 else False
         res_arr.append({"nodeID": node.node_id, "isActive": active})
 
@@ -76,7 +76,6 @@ def nodes_status_callback(ch, method, properties, body):
 def mqtt_on_connect(client, userdata, flags, rc):  
     client.subscribe("nodes/discover/response")
     client.subscribe("nodes/status")
-    client.publish("nodes/discover", payload="")
 
 
 def mqtt_on_message(client, userdata, msg):
@@ -84,6 +83,7 @@ def mqtt_on_message(client, userdata, msg):
 
     if msg.topic == 'nodes/discover/response':
         if node_map.get(str_payload) is None:
+            userdata["loaded"] = True
             node_map[str_payload] = Node(str_payload)
 
     elif msg.topic == 'nodes/status':
@@ -104,16 +104,18 @@ endpoints = [('startTask', start_task_callback),
             ('endTask', end_task_callback),
             ('nodesStatus', nodes_status_callback)]
 
-time.sleep(20.0)
+fw_ready = {"loaded": False}
+mqtt_bus = mqtt_conn.MQTTConn(on_connect=mqtt_on_connect, 
+                              on_message=mqtt_on_message, userdata=fw_ready)
 
-hostname = socket.gethostname()
-ip_address = socket.gethostbyname(hostname)
-
-print("up and running - ip address: {}".format(ip_address))
+while not fw_ready["loaded"]:
+    print("waiting for dummy firmware nodes to connect...")
+    mqtt_bus.publish(message="", topic="nodes/discover")
+    
+    time.sleep(1.5)
 
 amqp_bus = amqp_conn.AMQPConsumer()
 amqp_pub = amqp_conn.AMQPPublisher()
-mqtt_bus = mqtt_conn.MQTTConn(on_connect=mqtt_on_connect, on_message=mqtt_on_message)
 
 amqp_thread = threading.Thread(target=amqp_bus.consume, args=(endpoints,))
 amqp_thread.start() 

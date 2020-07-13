@@ -8,8 +8,8 @@ mqtt_conf = config.mqtt
 class MQTTConn(object):
 
     @retry(socket_error, delay=5, jitter=(1, 3))
-    def __init__(self, on_connect, on_message):
-        client = mqtt.Client("sensors-service")
+    def __init__(self, on_connect, on_message, userdata):
+        client = mqtt.Client("sensors-service", userdata=userdata)
         client.username_pw_set(mqtt_conf["username"], mqtt_conf["password"])
         client.connect(mqtt_conf["hostname"])
      
