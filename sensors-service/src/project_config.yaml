@@ -1,4 +1,4 @@
-# rabbitmq amqp configuration
+# configuration of rabbitmq amqp connection
 amqp:
   hostname: "rabbitmq-broker"
   username: "user"
@@ -8,7 +8,7 @@ amqp:
     updateStatus: UpdateNodesStatus
     updateTask: UpdateTaskCounter
 
-# rabbitmq mqtt plugin configuration
+# configuration of rabbitmq mqtt connection
 mqtt:
   hostname: "rabbitmq-broker"
   username: "user"
