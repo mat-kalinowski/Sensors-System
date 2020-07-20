@@ -83,6 +83,7 @@ def mqtt_on_message(client, userdata, msg):
 
     if msg.topic == 'nodes/discover/response':
         if node_map.get(str_payload) is None:
+            print("new message node connected with id: {}".format(str_payload))
             userdata["loaded"] = True
             node_map[str_payload] = Node(str_payload)
 
