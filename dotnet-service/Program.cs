@@ -76,20 +76,12 @@ namespace dotnetapp
                         var endTaskEp = await _bus.GetSendEndpoint(new Uri("queue:endTask"));
                         var nodesStatusEp = await _bus.GetSendEndpoint(new Uri("queue:nodesStatus"));
 
-                        await Console.Out.WriteLineAsync("Sending nodes status query");
-                        await nodesStatusEp.Send(new TaskRequest { nodeID = "123", taskID = 123 }, cts.Token);
-
                         await Console.Out.WriteLineAsync("Sending task start request");
-                        await startTaskEp.Send(new TaskRequest { nodeID = "123", taskID = 123 }, cts.Token);
+                        await startTaskEp.Send(new TaskRequest { nodeID = "80", taskID = 80 }, cts.Token);
                         await Task.Delay(30000);
 
-                        
-                        await Console.Out.WriteLineAsync("Sending nodes status query");
-                        await nodesStatusEp.Send(new TaskRequest { nodeID = "123", taskID = 123 }, cts.Token);
-
-
                         await Console.Out.WriteLineAsync("Sending task end request");
-                        await endTaskEp.Send(new TaskRequest { taskID = 123}, cts.Token);
+                        await endTaskEp.Send(new TaskRequest { taskID = 80}, cts.Token);
                         await Task.Delay(15000);
                     }
                     catch {}

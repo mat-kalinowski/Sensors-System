@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,6 +15,7 @@
 #include "esp_wifi.h"
 
 static EventGroupHandle_t s_wifi_event_group;
+static TaskHandle_t data_sender;
 
 static int s_retry_num = 10;
 uint32_t counter = 0;
@@ -22,16 +24,25 @@ static uint8_t mac_addr;
 char mac_string[3];
 
 
-static void sensor_data_reader(void* arg){
+static void sensor_data_reader(void* arg)
+{
     uint32_t *ptr = (uint32_t) arg;
     (*ptr)++;
 
     ets_printf("Handling interrupt - counter: %d\n", *ptr);
 }
 
-#define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
-#define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
-#define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
+static void mqtt_data_sender(void* arg)
+{
+    while(true){
+        printf("reading sensors data\n");
+        vTaskDelay(100);
+    }
+}
+
+#define ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
+#define ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
+#define ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
 
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
@@ -40,23 +51,51 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
     esp_mqtt_client_handle_t client = event->client;
 
+    char start_topic[50];
+    char end_topic[50];
+
+    sprintf(start_topic, "tasks/start/%d", mac_addr);
+    sprintf(end_topic, "tasks/end/%d", mac_addr);
+
     switch(event->event_id){
         case MQTT_EVENT_CONNECTED:
-            ESP_LOGI(mac_string, "Node connected to MQTT broker");
-
             esp_mqtt_client_subscribe(client, "nodes/discover", 0);
+            esp_mqtt_client_subscribe(client, start_topic, 0);
+            esp_mqtt_client_subscribe(client, end_topic, 0);
+
             esp_mqtt_client_publish(client, "nodes/discover/response", mac_string, 0, 1, 0);
+            ESP_LOGI(mac_string, "Node connected to MQTT broker");
             break;
+
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(mac_string, "Node disconnected with MQTT broker");
             break;
+
         case MQTT_EVENT_DATA:
             printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
             printf("DATA=%.*s\r\n", event->data_len, event->data);
+            
+            if(!strncmp("nodes/discover", event->topic, event->topic_len))
+                esp_mqtt_client_publish(client, "nodes/discover/response", mac_string, 0, 1, 0);
+
+            else if(!strncmp(start_topic, event->topic, event->topic_len)){
+                printf("task start command !\n");
+
+                gpio_isr_handler_add(GPIO_NUM_4, sensor_data_reader, (void *) &counter);
+                xTaskCreate(mqtt_data_sender, "mqtt-sender", configMINIMAL_STACK_SIZE,
+                             (void*) 0, tskIDLE_PRIORITY, &data_sender);
+            }
+
+            else if(!strncmp(end_topic, event->topic, event->topic_len)){
+                vTaskDelete(data_sender);
+            }
+
             break;
+
         case MQTT_EVENT_ERROR:
             ESP_LOGI(mac_string, "Node MQTT connection error");
             break;
+
         default:
             break;
     }
@@ -66,7 +105,6 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 void mqtt_setup()
 {
-
     const esp_mqtt_client_config_t mqtt_cfg = {
         .uri = "mqtt://user:user@192.168.1.157",
         .event_handle = mqtt_event_handler,
@@ -86,7 +124,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     } 
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) 
     {
-        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) 
+        if (s_retry_num < ESP_MAXIMUM_RETRY) 
         {
             esp_wifi_connect();
             s_retry_num++;
@@ -106,11 +144,11 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
         ESP_LOGI(mac_string, "got ip:%s",
                  ip4addr_ntoa(&event->ip_info.ip));
-        s_retry_num = 0;
+
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        s_retry_num = 0;
     }
 }
-
 
 void wifi_setup()
 {
@@ -128,8 +166,8 @@ void wifi_setup()
 
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS
+            .ssid = ESP_WIFI_SSID,
+            .password = ESP_WIFI_PASS
         },
     };
 
@@ -150,7 +188,6 @@ void wifi_setup()
 
 void app_main()
 {
-    esp_err_t err;
     gpio_config_t gpio_cfg;
 
     gpio_cfg.pin_bit_mask = GPIO_Pin_4;
@@ -167,12 +204,7 @@ void app_main()
     wifi_setup();
     mqtt_setup();
 
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(GPIO_NUM_4, sensor_data_reader, (void *) &counter);
-
-    printf("All the setup done !\n");
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
     return;
 }
-
-
