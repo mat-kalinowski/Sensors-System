@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Simple script to build esp docker image and run the container
 #
 # INPUT ARGUMENTS
