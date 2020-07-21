@@ -33,7 +33,7 @@ namespace dotnetapp
                     {
                         endpoint.Handler<UpdateTaskCounter>(async context =>
                         {
-                            await Console.Out.WriteLineAsync($" [x] Received node {context.Message.nodeID} update, counter: {context.Message.counter}");
+                            await Console.Out.WriteLineAsync($" [x] Received node {context.Message.nodeId} update, counter: {context.Message.counter}");
 
                         });
                     });
@@ -77,11 +77,11 @@ namespace dotnetapp
                         var nodesStatusEp = await _bus.GetSendEndpoint(new Uri("queue:nodesStatus"));
 
                         await Console.Out.WriteLineAsync("Sending task start request");
-                        await startTaskEp.Send(new TaskRequest { nodeID = "80", taskID = 80 }, cts.Token);
+                        await startTaskEp.Send(new TaskRequest { nodeId = "80", taskId = 80 }, cts.Token);
                         await Task.Delay(30000);
 
                         await Console.Out.WriteLineAsync("Sending task end request");
-                        await endTaskEp.Send(new TaskRequest { taskID = 80}, cts.Token);
+                        await endTaskEp.Send(new TaskRequest { taskId = 80}, cts.Token);
                         await Task.Delay(15000);
                     }
                     catch {}
@@ -92,20 +92,20 @@ namespace dotnetapp
 
     public class TaskRequest
     {
-        public string nodeID { get; set; }
-        public int taskID { get; set; } 
+        public string nodeId { get; set; }
+        public int taskId { get; set; } 
     }
 
     public class UpdateTaskCounter
     {
-        public string nodeID { get; set; }
+        public string nodeId { get; set; }
         public int taskId { get; set; }
         public int counter { get; set; }
     }
 
     public class UpdateNodeStatus
     {
-        public string nodeID { get; set; }
+        public string nodeId { get; set; }
         public bool isActive { get; set; }
     }
 }

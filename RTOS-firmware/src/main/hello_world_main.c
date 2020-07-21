@@ -14,11 +14,14 @@
 #include "driver/gpio.h"
 #include "esp_wifi.h"
 
+#define sensorGPIO      GPIO_NUM_4
+
 static EventGroupHandle_t s_wifi_event_group;
-static TaskHandle_t data_sender;
+static TaskHandle_t data_sender = NULL;
+static esp_mqtt_client_handle_t client;
 
 static int s_retry_num = 10;
-uint32_t counter = 0;
+uint32_t volatile counter = 0;
 
 static uint8_t mac_addr;
 char mac_string[3];
@@ -28,14 +31,16 @@ static void sensor_data_reader(void* arg)
 {
     uint32_t *ptr = (uint32_t) arg;
     (*ptr)++;
-
-    ets_printf("Handling interrupt - counter: %d\n", *ptr);
 }
 
 static void mqtt_data_sender(void* arg)
 {
     while(true){
-        printf("reading sensors data\n");
+        char json_msg[50];
+
+        sprintf(json_msg, "{\"nodeId\": \"%d\", \"counter\": %d}", mac_addr, counter);
+        esp_mqtt_client_publish(client, "nodes/status", json_msg, 0, 1, 0);
+
         vTaskDelay(100);
     }
 }
@@ -72,24 +77,19 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
             break;
 
         case MQTT_EVENT_DATA:
-            printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            printf("DATA=%.*s\r\n", event->data_len, event->data);
-            
             if(!strncmp("nodes/discover", event->topic, event->topic_len))
                 esp_mqtt_client_publish(client, "nodes/discover/response", mac_string, 0, 1, 0);
 
             else if(!strncmp(start_topic, event->topic, event->topic_len)){
-                printf("task start command !\n");
-
-                gpio_isr_handler_add(GPIO_NUM_4, sensor_data_reader, (void *) &counter);
-                xTaskCreate(mqtt_data_sender, "mqtt-sender", configMINIMAL_STACK_SIZE,
+                gpio_isr_handler_add(sensorGPIO, sensor_data_reader, (void *) &counter);
+                xTaskCreate(mqtt_data_sender, "mqtt-sender", 4*configMINIMAL_STACK_SIZE,
                              (void*) 0, tskIDLE_PRIORITY, &data_sender);
             }
 
             else if(!strncmp(end_topic, event->topic, event->topic_len)){
-                vTaskDelete(data_sender);
+                if(data_sender)
+                    vTaskDelete(data_sender);
             }
-
             break;
 
         case MQTT_EVENT_ERROR:
@@ -110,11 +110,11 @@ void mqtt_setup()
         .event_handle = mqtt_event_handler,
     };
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_start(client);
 }
 
-static void event_handler(void* arg, esp_event_base_t event_base,
+static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) 
@@ -161,8 +161,8 @@ void wifi_setup()
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
     wifi_config_t wifi_config = {
         .sta = {
@@ -181,8 +181,8 @@ void wifi_setup()
             pdFALSE,
             portMAX_DELAY);
 
-    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));
-    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler));
     vEventGroupDelete(s_wifi_event_group);
 }
 

@@ -29,7 +29,7 @@ class Node(object):
 
 def start_task_callback(ch, method, properties, body):
     msg_dict = json.loads(body)["message"]
-    node_obj = node_map.get(msg_dict["nodeID"])
+    node_obj = node_map.get(msg_dict["nodeId"])
 
     print(" [x] Received start task request - message: %r" % msg_dict)
    
@@ -37,7 +37,7 @@ def start_task_callback(ch, method, properties, body):
         mqtt_bus.publish(message="", topic="nodes/discover")
         return
 
-    node_obj.switch_task(msg_dict["taskID"])
+    node_obj.switch_task(msg_dict["taskId"])
     tasks_map[node_obj.task_id] = node_obj
 
     mqtt_bus.publish(message="", topic="tasks/start/{}".format(node_obj.node_id))
@@ -45,7 +45,7 @@ def start_task_callback(ch, method, properties, body):
 
 def end_task_callback(ch, method, properties, body):
     msg_dict = json.loads(body)["message"]
-    node_obj = tasks_map.get(msg_dict["taskID"])
+    node_obj = tasks_map.get(msg_dict["taskId"])
 
     print(" [x] Received end task request - message: %r" % msg_dict)
    
@@ -68,7 +68,7 @@ def nodes_status_callback(ch, method, properties, body):
         node = node_tuple[1]
 
         active = True if node.task_id >= 0 else False
-        res_arr.append({"nodeID": node.node_id, "isActive": active})
+        res_arr.append({"nodeId": node.node_id, "isActive": active})
 
     amqp_pub.publish(message=res_arr, exchange='updateStatus')
 
@@ -81,22 +81,23 @@ def mqtt_on_connect(client, userdata, flags, rc):
 def mqtt_on_message(client, userdata, msg):
     str_payload = msg.payload.decode("utf-8") 
 
+    print("message: {}".format(str_payload))
+
     if msg.topic == 'nodes/discover/response':
         if node_map.get(str_payload) is None:
-            print("new message node connected with id: {}".format(str_payload))
             userdata["loaded"] = True
             node_map[str_payload] = Node(str_payload)
 
     elif msg.topic == 'nodes/status':
-        task_data = json.loads(msg.payload)
-        node_obj = node_map.get(task_data['nodeID'])
+        task_data = json.loads(str_payload)
+        node_obj = node_map.get(task_data['nodeId'])
         
         if node_obj is not None and node_obj.counter != task_data['counter']:
             node_obj.counter = task_data['counter']
             ser_node = node_obj.__dict__.copy()
 
-            ser_node["nodeID"] = ser_node.pop("node_id")
-            ser_node["taskID"] = ser_node.pop("task_id")
+            ser_node["nodeId"] = ser_node.pop("node_id")
+            ser_node["taskId"] = ser_node.pop("task_id")
 
             amqp_pub.publish(message=ser_node, exchange='updateTask')
 
