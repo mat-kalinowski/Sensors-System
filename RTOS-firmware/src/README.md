@@ -1,5 +1,3 @@
-# Hello World Example
+# Free RTOS based firmware
 
-Starts a FreeRTOS task to print "Hello World"
-
-See the README.md file in the upper level 'examples' directory for more information about examples.
+Fw handling MQTT communication and sensor data gathering
