@@ -13,7 +13,7 @@
 #include "esp_wifi.h"
 #include "mqtt_client.h"
 
-#define sensorGPIO      GPIO_NUM_4
+#define sensorGPIO  GPIO_NUM_4
 
 static TaskHandle_t data_sender = NULL;
 static esp_mqtt_client_handle_t client;

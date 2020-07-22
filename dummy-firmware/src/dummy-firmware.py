@@ -45,7 +45,7 @@ class Node(object):
         client = mqtt.Client(self.node_id, userdata={'node': self})
 
         client.username_pw_set("user", "user")
-        client.connect("rabbitmq-broker", 1883, 60)
+        client.connect("localhost", 1883, 60)
 
         client.on_message = mqtt_message_handler
         client.on_connect = mqtt_connection_handler
@@ -57,7 +57,7 @@ class Node(object):
         while getattr(self, "do_run", True):
             self.counter += 1
 
-            json_msg = json.dumps({'nodeID': self.node_id,'counter': self.counter})
+            json_msg = json.dumps({'nodeId': self.node_id,'counter': self.counter})
             self.client_handle.publish("nodes/status", json_msg)
 
             time.sleep(2.0)

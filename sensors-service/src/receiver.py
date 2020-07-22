@@ -28,8 +28,14 @@ class Node(object):
 
 
 def start_task_callback(ch, method, properties, body):
-    msg_dict = json.loads(body)["message"]
-    node_obj = node_map.get(msg_dict["nodeId"])
+    try:
+        msg_dict = json.loads(body).get("message", {})
+
+    except json.decoder.JSONDecodeError:
+        print("Message not in json format: {}".format(body))
+        return
+
+    node_obj = node_map.get(msg_dict.get("nodeId"))
 
     print(" [x] Received start task request - message: %r" % msg_dict)
    
@@ -44,8 +50,14 @@ def start_task_callback(ch, method, properties, body):
 
 
 def end_task_callback(ch, method, properties, body):
-    msg_dict = json.loads(body)["message"]
-    node_obj = tasks_map.get(msg_dict["taskId"])
+    try:
+        msg_dict = json.loads(body).get("message", {})
+ 
+    except json.decoder.JSONDecodeError:
+        print("Message not in json format: {}".format(body))
+        return 
+
+    node_obj = tasks_map.get(msg_dict.get("taskId"))
 
     print(" [x] Received end task request - message: %r" % msg_dict)
    

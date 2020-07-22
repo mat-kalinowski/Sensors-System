@@ -23,7 +23,7 @@ namespace dotnetapp
 
                 _bus = MassTransit.Bus.Factory.CreateUsingRabbitMq(cfg =>
                 {
-                    cfg.Host("rabbitmq-broker", "/", h =>
+                    cfg.Host("localhost", "/", h =>
                     {
                         h.Username("user");
                         h.Password("user");
@@ -77,11 +77,11 @@ namespace dotnetapp
                         var nodesStatusEp = await _bus.GetSendEndpoint(new Uri("queue:nodesStatus"));
 
                         await Console.Out.WriteLineAsync("Sending task start request");
-                        await startTaskEp.Send(new TaskRequest { nodeId = "80", taskId = 80 }, cts.Token);
+                        await startTaskEp.Send(new TaskRequest { nodeId = "123", taskId = 123 }, cts.Token);
                         await Task.Delay(30000);
 
                         await Console.Out.WriteLineAsync("Sending task end request");
-                        await endTaskEp.Send(new TaskRequest { taskId = 80}, cts.Token);
+                        await endTaskEp.Send(new TaskRequest { taskId = 123}, cts.Token);
                         await Task.Delay(15000);
                     }
                     catch {}

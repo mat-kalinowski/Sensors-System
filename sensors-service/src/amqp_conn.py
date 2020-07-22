@@ -24,12 +24,12 @@ class AMQPConsumer(object):
     credentials = pika.PlainCredentials(amqp_conf["username"], amqp_conf["password"])
     params = pika.ConnectionParameters(host=amqp_conf["hostname"], credentials=credentials)
     
-    @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
-    def __init__(self, *args, **kwargs):
+    @retry((pika.exceptions.AMQPConnectionError,
+            pika.exceptions.ConnectionClosedByBroker), delay=5, jitter=(1, 3))
+    def consume(self, ep_callbacks):
         self.conn = pika.BlockingConnection(self.params)
         self.channel = self.conn.channel()
 
-    def consume(self, ep_callbacks):
         for ep in ep_callbacks:
             self.channel.queue_declare(ep[0], durable=True)
 
@@ -37,14 +37,8 @@ class AMQPConsumer(object):
                 queue=ep[0], 
                 on_message_callback=ep[1], 
                 auto_ack=True)
-
+        
         self.channel.start_consuming()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.conn.close()
 
 
 class AMQPPublisher(object):
@@ -52,11 +46,14 @@ class AMQPPublisher(object):
     credentials = pika.PlainCredentials(amqp_conf["username"], amqp_conf["password"])
     params = pika.ConnectionParameters(host=amqp_conf["hostname"], credentials=credentials)
     
-    @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
     def __init__(self, *args, **kwargs):
+        self.connect()
+
+    @retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
+    def connect(self):
+        print("AMQP publish reconnecting...")
         self.conn = pika.BlockingConnection(self.params)
         self.channel = self.conn.channel()
-
 
     def publish(self, message, exchange):
         msg = MassTransitMessage(endpoint=exchange, message=message)
@@ -66,5 +63,11 @@ class AMQPPublisher(object):
         if self.channel is None:
             return
 
-        self.channel.basic_publish(
-            exchange=exchange, routing_key='', body=msg.to_json())
+        try:
+            self.channel.basic_publish(
+                exchange=exchange, routing_key='', body=msg.to_json())
+
+        except (pika.exceptions.ConnectionClosedByBroker,
+                pika.exceptions.AMQPConnectionError) as e:
+            self.connect()
+

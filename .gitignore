@@ -2,3 +2,4 @@ RTOS-firmware/ESP8266_RTOS_SDK/
 RTOS-firmware/*.gz
 RTOS-firmware/src/.local/
 RTOS-firmware/src/build
+__pycache__

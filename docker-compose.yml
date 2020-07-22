@@ -23,11 +23,15 @@ services:
                         - "dummy-firmware"
                 volumes:
                         - ./sensors-service/src:/root/
+                network_mode: "host"
+
 
         dotnet-service:
                 build: ./dotnet-service
                 depends_on:
                         - "rabbitmq-broker"
+                network_mode: "host"
+
 
         dummy-firmware:
                 build: ./dummy-firmware
@@ -35,5 +39,4 @@ services:
                         - ./dummy-firmware/src:/root/
                 depends_on:
                         - "rabbitmq-broker"
-
-        
+                network_mode: "host"

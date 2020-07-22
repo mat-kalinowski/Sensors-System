@@ -1,6 +1,6 @@
 # configuration of rabbitmq amqp connection
 amqp:
-  hostname: "rabbitmq-broker"
+  hostname: "localhost"
   username: "user"
   password: "user"
   dotnet-service: "dotnetapp"
@@ -10,6 +10,6 @@ amqp:
 
 # configuration of rabbitmq mqtt connection
 mqtt:
-  hostname: "rabbitmq-broker"
+  hostname: "localhost"
   username: "user"
   password: "user"
