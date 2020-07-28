@@ -23,7 +23,7 @@ static uint8_t mac_addr;
 
 char mac_string[3];
 
-void wifi_setup(void);
+void initialise_wifi(void);
 esp_mqtt_client_handle_t mqtt_setup(mqtt_event_callback_t ev_handler);
 
 static void sensor_data_reader(void* arg)
@@ -105,15 +105,15 @@ void app_main()
     gpio_cfg.pull_down_en = 0;
     gpio_cfg.pull_up_en = 0;
 
-    ESP_ERROR_CHECK(esp_efuse_mac_get_default(&mac_addr));
-    ESP_ERROR_CHECK(gpio_config(&gpio_cfg));
+    //ESP_ERROR_CHECK(esp_efuse_mac_get_default(&mac_addr));
+    //ESP_ERROR_CHECK(gpio_config(&gpio_cfg));
 
     sprintf(mac_string, "%d", mac_addr);
 
-    wifi_setup();
-    client = mqtt_setup(mqtt_event_handler);
+    initialise_wifi();
+    //client = mqtt_setup(mqtt_event_handler);
 
-    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    //ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
     return;
 }
