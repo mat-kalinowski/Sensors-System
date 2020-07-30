@@ -13,14 +13,15 @@
 #include "esp_wifi.h"
 #include "mqtt_client.h"
 
-#define sensorGPIO  GPIO_NUM_4
+#define sensorGPIO  GPIO_NUM_0
 
 static TaskHandle_t data_sender = NULL;
 static esp_mqtt_client_handle_t client;
 
 uint32_t volatile counter = 0;
-static uint8_t mac_addr;
+uint32_t prev_counter = 0;
 
+static uint8_t mac_addr;
 char mac_string[3];
 
 void initialise_wifi(void);
@@ -28,17 +29,21 @@ esp_mqtt_client_handle_t mqtt_setup(mqtt_event_callback_t ev_handler);
 
 static void sensor_data_reader(void* arg)
 {
-    uint32_t *ptr = (uint32_t) arg;
+    uint32_t *ptr = (uint32_t*) arg;
     (*ptr)++;
 }
 
 static void mqtt_data_sender(void* arg)
 {
     while(true){
-        char json_msg[50];
+        if(counter != prev_counter){
+            char json_msg[50];
 
-        sprintf(json_msg, "{\"nodeId\": \"%d\", \"counter\": %d}", mac_addr, counter);
-        esp_mqtt_client_publish(client, "nodes/status", json_msg, 0, 1, 0);
+            sprintf(json_msg, "{\"nodeId\": \"%d\", \"counter\": %d}", mac_addr, counter);
+            esp_mqtt_client_publish(client, "nodes/status", json_msg, 0, 1, 0);
+
+            prev_counter = counter;
+        }
 
         vTaskDelay(100);
     }
@@ -73,14 +78,18 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
                 esp_mqtt_client_publish(client, "nodes/discover/response", mac_string, 0, 1, 0);
 
             else if(!strncmp(start_topic, event->topic, event->topic_len)){
-                gpio_isr_handler_add(sensorGPIO, sensor_data_reader, (void *) &counter);
+                counter = 0;
+
+                ESP_ERROR_CHECK(gpio_isr_handler_add(sensorGPIO, sensor_data_reader, (void *) &counter));
                 xTaskCreate(mqtt_data_sender, "mqtt-sender", 4*configMINIMAL_STACK_SIZE,
                              (void*) 0, tskIDLE_PRIORITY, &data_sender);
             }
 
             else if(!strncmp(end_topic, event->topic, event->topic_len)){
-                if(data_sender)
+                if(data_sender){
+                    ESP_ERROR_CHECK(gpio_isr_handler_remove(sensorGPIO));
                     vTaskDelete(data_sender);
+                }
             }
             break;
 
@@ -99,21 +108,21 @@ void app_main()
 {
     gpio_config_t gpio_cfg;
 
-    gpio_cfg.pin_bit_mask = GPIO_Pin_4;
+    gpio_cfg.pin_bit_mask = GPIO_Pin_0;
     gpio_cfg.mode = GPIO_MODE_INPUT;
     gpio_cfg.intr_type = GPIO_INTR_POSEDGE;
-    gpio_cfg.pull_down_en = 0;
+    gpio_cfg.pull_down_en = 1;
     gpio_cfg.pull_up_en = 0;
 
-    //ESP_ERROR_CHECK(esp_efuse_mac_get_default(&mac_addr));
-    //ESP_ERROR_CHECK(gpio_config(&gpio_cfg));
+    ESP_ERROR_CHECK(esp_efuse_mac_get_default(&mac_addr));
+    ESP_ERROR_CHECK(gpio_config(&gpio_cfg));
 
     sprintf(mac_string, "%d", mac_addr);
 
     initialise_wifi();
-    //client = mqtt_setup(mqtt_event_handler);
+    client = mqtt_setup(mqtt_event_handler);
 
-    //ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
     return;
 }

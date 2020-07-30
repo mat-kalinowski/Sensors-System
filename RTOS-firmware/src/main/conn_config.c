@@ -82,8 +82,8 @@ void initialise_wifi(void)
     
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = "",
-            .password = ""
+            .ssid = "configuration",
+            .password = "configuration"
         },
     };
     
@@ -98,9 +98,20 @@ void initialise_wifi(void)
     char* ssid = malloc(ssid_size);
     char* password = malloc(password_size);
 
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_START, &on_wifi_start, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+
     /*
     *   No credentials in flash memory -> smartconfig
-    *   If they are try to connect -> wifi_connect()
+    *   If they are, try to connect -> wifi_connect()
     *   
     *   WIFI_EVENT_STA_DISCONNECT s_retry_num times -> drop wifi_connect(), start smartconfig
     */
@@ -120,19 +131,8 @@ void initialise_wifi(void)
 
     printf("SSID fetched from flash memory: %s\n", wifi_config.sta.ssid);
     printf("PASSWORD fetched from flash memory: %s\n", wifi_config.sta.password);
-
-    tcpip_adapter_init();
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_START, &on_wifi_start, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config))
-
+    
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
@@ -208,7 +208,7 @@ esp_mqtt_client_handle_t mqtt_setup(mqtt_event_callback_t ev_handler)
     esp_mqtt_client_handle_t client;
 
     const esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = "mqtt://user:user@192.168.1.157",
+        .uri = "mqtt://user:user@192.168.1.161",
         .event_handle = ev_handler,
     };
 
